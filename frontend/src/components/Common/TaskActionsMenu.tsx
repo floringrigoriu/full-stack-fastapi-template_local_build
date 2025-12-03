@@ -16,7 +16,7 @@ export function TaskActionsMenu({ task, onUpdated, onDeleted }: { task: any, onU
       </MenuTrigger>
       <MenuContent>
         <EditTask task={task} onUpdated={onUpdated} />
-        {/* <DeleteTask id={task.id} onDeleted={onDeleted} /> */}
+        <DeleteTask id={task.id} onDeleted={onDeleted} />
       </MenuContent>
     </MenuRoot>
   )
