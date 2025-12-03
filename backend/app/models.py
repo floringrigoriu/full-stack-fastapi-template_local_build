@@ -44,6 +44,7 @@ class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
     items: list["Item"] = Relationship(back_populates="owner", cascade_delete=True)
+    tasks: list["Task"] = Relationship(back_populates="owner", cascade_delete=True)
 
 
 # Properties to return via API, id is always required
@@ -89,6 +90,38 @@ class ItemPublic(ItemBase):
 
 class ItemsPublic(SQLModel):
     data: list[ItemPublic]
+    count: int
+
+
+# Shared properties
+class TaskBase(SQLModel):
+    title: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=255)
+
+
+class TaskCreate(TaskBase):
+    pass
+
+
+class TaskUpdate(TaskBase):
+    title: str | None = Field(default=None, min_length=1, max_length=255)  # type: ignore
+
+
+class Task(TaskBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(
+        foreign_key="user.id", nullable=False, ondelete="CASCADE"
+    )
+    owner: User | None = Relationship(back_populates="tasks")
+
+
+class TaskPublic(TaskBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+
+
+class TasksPublic(SQLModel):
+    data: list[TaskPublic]
     count: int
 
 

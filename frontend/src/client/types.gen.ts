@@ -51,6 +51,28 @@ export type PrivateUserCreate = {
     is_verified?: boolean;
 };
 
+export type TaskCreate = {
+    title: string;
+    description?: (string | null);
+};
+
+export type TaskPublic = {
+    title: string;
+    description?: (string | null);
+    id: string;
+    owner_id: string;
+};
+
+export type TasksPublic = {
+    data: Array<TaskPublic>;
+    count: number;
+};
+
+export type TaskUpdate = {
+    title?: (string | null);
+    description?: (string | null);
+};
+
 export type Token = {
     access_token: string;
     token_type?: string;
@@ -170,6 +192,38 @@ export type PrivateCreateUserData = {
 };
 
 export type PrivateCreateUserResponse = (UserPublic);
+
+export type TasksReadTasksData = {
+    limit?: number;
+    skip?: number;
+};
+
+export type TasksReadTasksResponse = (TasksPublic);
+
+export type TasksCreateTaskData = {
+    requestBody: TaskCreate;
+};
+
+export type TasksCreateTaskResponse = (TaskPublic);
+
+export type TasksReadTaskData = {
+    id: string;
+};
+
+export type TasksReadTaskResponse = (TaskPublic);
+
+export type TasksUpdateTaskData = {
+    id: string;
+    requestBody: TaskUpdate;
+};
+
+export type TasksUpdateTaskResponse = (TaskPublic);
+
+export type TasksDeleteTaskData = {
+    id: string;
+};
+
+export type TasksDeleteTaskResponse = (Message);
 
 export type UsersReadUsersData = {
     limit?: number;
