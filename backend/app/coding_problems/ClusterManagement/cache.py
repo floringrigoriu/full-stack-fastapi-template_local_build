@@ -12,6 +12,11 @@
 
 from typing import Any, Optional, Protocol
 import asyncio
+from collections import OrderedDict
+import os
+import aiofiles
+import pickle
+from .lru import LRUCache
 
 # Interface for file storage
 class FileStore(Protocol):
@@ -31,40 +36,65 @@ class BlobStore(Protocol):
     async def delete(self, key: str) -> None:
         ...
 
-# In-memory cache implementation
+# In-memory cache implementation with LRU eviction
 class MemoryCache:
-    def __init__(self):
-        self._cache = {}
-    def get(self, key: str) -> Optional[Any]:
-        return self._cache.get(key)
-    def set(self, key: str, value: Any) -> None:
-        self._cache[key] = value
-    def delete(self, key: str) -> None:
-        if key in self._cache:
-            del self._cache[key]
+    def __init__(self, max_items: int = 100, max_size: int = None):
+        def on_evict(key, value):
+            pass  # For memory, just remove from cache
+        self.lru = LRUCache(max_items=max_items, max_size=max_size, on_evict=on_evict)
+        self.lru.set_size_func(lambda v: len(pickle.dumps(v)))
 
-# File store implementation
+    def get(self, key: str):
+        return self.lru.get(key)
+
+    def set(self, key: str, value: Any):
+        self.lru.set(key, value)
+
+    def delete(self, key: str):
+        self.lru.delete(key)
+
+# File store implementation with LRU eviction
 class FileStoreImpl:
-    def __init__(self, directory: str):
+    def __init__(self, directory: str, max_items: int = 1000, max_size: int = 1024*1024*1024):
+        os.makedirs(directory, exist_ok=True)
+        def on_evict(key, value):
+            path = f"{directory}/{key}.cache"
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+        self.lru = LRUCache(max_items=max_items, max_size=max_size, on_evict=on_evict)
+        self.lru.set_size_func(lambda v: len(pickle.dumps(v)))
         self.directory = directory
+
+    def _get_path(self, key: str) -> str:
+        return f"{self.directory}/{key}.cache"
+
     async def load(self, key: str) -> Optional[Any]:
-        path = f"{self.directory}/{key}.cache"
+        path = self._get_path(key)
         try:
-            async with aiofiles.open(path, "r") as f:
-                return await f.read()
+            async with aiofiles.open(path, "rb") as f:
+                data = await f.read()
+                value = pickle.loads(data)
+            self.lru.set(key, value)
+            return value
         except FileNotFoundError:
             return None
+
     async def save(self, key: str, value: Any) -> None:
-        path = f"{self.directory}/{key}.cache"
-        async with aiofiles.open(path, "w") as f:
-            await f.write(str(value))
+        path = self._get_path(key)
+        data = pickle.dumps(value)
+        async with aiofiles.open(path, "wb") as f:
+            await f.write(data)
+        self.lru.set(key, value)
+
     async def delete(self, key: str) -> None:
-        path = f"{self.directory}/{key}.cache"
+        path = self._get_path(key)
         try:
-            import os
             os.remove(path)
         except FileNotFoundError:
             pass
+        self.lru.delete(key)
 
 # Azure blob store implementation
 class AzureBlobStoreImpl:
