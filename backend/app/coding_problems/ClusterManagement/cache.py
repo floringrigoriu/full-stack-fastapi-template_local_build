@@ -14,7 +14,7 @@ from typing import Any, Optional, Protocol
 import asyncio
 from collections import OrderedDict
 import os
-import aiofiles
+# import aiofiles
 import pickle
 from .lru import LRUCache
 

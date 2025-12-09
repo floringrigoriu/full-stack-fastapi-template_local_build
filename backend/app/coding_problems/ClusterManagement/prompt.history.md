@@ -92,3 +92,10 @@ do update the consistent hash ring by making sure on average only 1/n of the vir
 # prompt #10 : change constructor to have injection of the constructor of cache:
 
 instead of an instance of caches as parameter for Router constructor, add a callable that constructs a new cache instance on  Cache
+
+# prompt 11: implement a class for testing  Router (model : Sonnet 4.5)
+Add a test for verification of Router implementation
+In particular verify :
+given a list 100 generated centroids , each having a embedding_length = 512, each value is between -1 and 1
+- when adding the a new real node increasing the count of real nodes 10 to 11 to the hash ring , the number of centroids changing their serving cache < 15 (it cannot be exactly 10 because of random generation of the values). The number of centroids served by the new node should be > than number_centroids/(number_real_nodes*2)
+- when removing a real node , the number of centroids changing their serving cache < 15 (it cannot be exactly 10 because of random generation of the values)

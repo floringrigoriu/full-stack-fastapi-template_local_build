@@ -1,6 +1,7 @@
 import hashlib
-from typing import List, Protocol, Any
-from .VectorSearch import ChunkIndex, InMemoryVectorSearch
+from typing import List, Protocol, Any, Callable
+from .VectorSearch import ChunkIndex, InMemoryVectorSearch, VectorSearchInterface
+from .cache import NLayerCache
 
 class RouterInterface(Protocol):
     def GetSearch(self, targetVector: List[float], topK: int) -> List[Any]:
@@ -80,7 +81,7 @@ class ConsistentHashRing:
         self.sorted_keys = sorted(self.ring.keys())
 
 class Router(RouterInterface):
-    def __init__(self, centroids: List[List[float]], cache_factory: callable[[int],NLayerCache], virtual_nodes_per_node: int = 1000, real_nodes: int = 10):
+    def __init__(self, centroids: List[List[float]], cache_factory: Callable[[int],NLayerCache], virtual_nodes_per_node: int = 1000, real_nodes: int = 10):
         self.chunk_index = ChunkIndex(centroids)
         self.hash_ring = ConsistentHashRing(virtual_nodes_per_node, real_nodes)
         self.real_nodes = real_nodes
