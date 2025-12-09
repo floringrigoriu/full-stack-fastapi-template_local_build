@@ -119,7 +119,7 @@ class AzureBlobStoreImpl(CacheLayer):
         blob_client = self.container_client.get_blob_client(key)
         await blob_client.delete_blob()
 
-class NLayerCache:
+class NLayerCache(CacheLayer):
     def __init__(self, layers: list[CacheLayer]):
         """
         layers: list of cache/storage objects, ordered from fastest (cheapest) to slowest (guaranteed)

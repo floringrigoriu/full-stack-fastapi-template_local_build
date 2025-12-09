@@ -73,5 +73,22 @@ algorithm :
   - IncreaseRealNodesCount()
   - DecreaseRealNodesCount() 
 
-# prompt 9 : fix the consistent hashing - it looks on resizing all virtual nodes are moved, which is not the objective of the algorithm
+# prompt 9 : fix the consistent hashing [ model : Haiku 4.5]
+it looks on resizing all virtual nodes are moved, which is not the objective of the algorithm. The objective of consistent hashing is to keep as much as possible nodes not moved on repartitions. Please fix the code
 
+
+# prompt #10 :The prompt still moves most of the virtual nodes [model Gpt 5.1 Codex]
+last implementation updates still move most of the virtusl nodes because most of the time : 
+```
+for v_node in range(self.virtual_nodes):
+            old_node = v_node % old_real_nodes
+            new_node = v_node % self.real_nodes
+            if old_node != new_node:
+                self.ring[v_node] = new_node
+```
+do update the consistent hash ring by making sure on average only 1/n of the virtual nodes are moved during partition increase or decrease. Also make sure to respect consistent hashing algorithm
+
+
+# prompt #10 : change constructor to have injection of the constructor of cache:
+
+instead of an instance of caches as parameter for Router constructor, add a callable that constructs a new cache instance on  Cache
