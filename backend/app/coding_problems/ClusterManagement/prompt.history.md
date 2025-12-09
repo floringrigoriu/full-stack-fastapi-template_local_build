@@ -73,4 +73,5 @@ algorithm :
   - IncreaseRealNodesCount()
   - DecreaseRealNodesCount() 
 
+# prompt 9 : fix the consistent hashing - it looks on resizing all virtual nodes are moved, which is not the objective of the algorithm
 
