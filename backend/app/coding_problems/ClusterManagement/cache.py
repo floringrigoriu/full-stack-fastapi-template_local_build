@@ -36,25 +36,31 @@ class BlobStore(Protocol):
     async def delete(self, key: str) -> None:
         ...
 
-# In-memory cache implementation with LRU eviction
-class MemoryCache:
+class CacheLayer(Protocol):
+    async def get(self, key: str) -> Optional[Any]:
+        ...
+    async def set(self, key: str, value: Any) -> None:
+        ...
+    async def delete(self, key: str) -> None:
+        ...
+
+class MemoryCache(CacheLayer):
     def __init__(self, max_items: int = 100, max_size: int = None):
         def on_evict(key, value):
             pass  # For memory, just remove from cache
         self.lru = LRUCache(max_items=max_items, max_size=max_size, on_evict=on_evict)
         self.lru.set_size_func(lambda v: len(pickle.dumps(v)))
 
-    def get(self, key: str):
+    async def get(self, key: str):
         return self.lru.get(key)
 
-    def set(self, key: str, value: Any):
+    async def set(self, key: str, value: Any):
         self.lru.set(key, value)
 
-    def delete(self, key: str):
+    async def delete(self, key: str):
         self.lru.delete(key)
 
-# File store implementation with LRU eviction
-class FileStoreImpl:
+class FileStoreImpl(CacheLayer):
     def __init__(self, directory: str, max_items: int = 1000, max_size: int = 1024*1024*1024):
         os.makedirs(directory, exist_ok=True)
         def on_evict(key, value):
@@ -70,7 +76,7 @@ class FileStoreImpl:
     def _get_path(self, key: str) -> str:
         return f"{self.directory}/{key}.cache"
 
-    async def load(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Optional[Any]:
         path = self._get_path(key)
         try:
             async with aiofiles.open(path, "rb") as f:
@@ -81,7 +87,7 @@ class FileStoreImpl:
         except FileNotFoundError:
             return None
 
-    async def save(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         path = self._get_path(key)
         data = pickle.dumps(value)
         async with aiofiles.open(path, "wb") as f:
@@ -96,57 +102,58 @@ class FileStoreImpl:
             pass
         self.lru.delete(key)
 
-# Azure blob store implementation
-class AzureBlobStoreImpl:
+class AzureBlobStoreImpl(CacheLayer):
     def __init__(self, container_client):
         self.container_client = container_client
-    async def load(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Optional[Any]:
         try:
             blob_client = self.container_client.get_blob_client(key)
             stream = await blob_client.download_blob()
             return await stream.readall()
         except Exception:
             return None
-    async def save(self, key: str, value: Any) -> None:
+    async def set(self, key: str, value: Any) -> None:
         blob_client = self.container_client.get_blob_client(key)
         await blob_client.upload_blob(str(value), overwrite=True)
     async def delete(self, key: str) -> None:
         blob_client = self.container_client.get_blob_client(key)
         await blob_client.delete_blob()
 
-# 3-layer cache implementation
-class ThreeLayerCache:
-    def __init__(self, mem_cache: MemoryCache, file_store: FileStore, blob_store: BlobStore):
-        self.mem_cache = mem_cache
-        self.file_store = file_store
-        self.blob_store = blob_store
+class NLayerCache:
+    def __init__(self, layers: list[CacheLayer]):
+        """
+        layers: list of cache/storage objects, ordered from fastest (cheapest) to slowest (guaranteed)
+        Each layer must implement get(key), set(key, value), delete(key)
+        For async layers, use async def for get/set/delete
+        """
+        self.layers = layers
 
     async def get(self, key: str) -> Any:
-        # Try memory cache first
-        value = self.mem_cache.get(key)
-        if value is not None:
-            return value
-        
-        # Try file storage second
-        value = await self.file_store.load(key)
-        if value is not None:
-            self.mem_cache.set(key, value)
-            return value
-        
-        # Load from blob storage (guaranteed to be present)
-        value = await self.blob_store.load(key)
-        # Add to memory cache immediately
-        self.mem_cache.set(key, value)
-        # Asynchronously save to file storage without blocking
-        asyncio.create_task(self.file_store.save(key, value))
+        # Try each layer in order
+        for i, layer in enumerate(self.layers):
+            value = await layer.get(key)
+            if value is not None:
+                # Copy to all faster layers above
+                for j in range(i):
+                    asyncio.create_task(self.layers[j].set(key, value))
+                return value
+        # Last layer is guaranteed to have the data
+        last_layer = self.layers[-1]
+        value = await last_layer.get(key)
+        # Copy to all faster layers
+        for j in range(len(self.layers)-1):
+            asyncio.create_task(self.layers[j].set(key, value))
         return value
 
     async def set(self, key: str, value: Any) -> None:
-        self.mem_cache.set(key, value)
-        await self.file_store.save(key, value)
-        await self.blob_store.save(key, value)
+        # Set in all layers
+        for layer in self.layers:
+            await layer.set(key, value)
 
     async def delete(self, key: str) -> None:
-        self.mem_cache.delete(key)
-        await self.file_store.delete(key)
-        await self.blob_store.delete(key)
+        for layer in self.layers:
+            await layer.delete(key)
+
+class EfficientVectorStorage(NLayerCache):
+    def __init__(self, mem_cache: CacheLayer, file_store: CacheLayer, blob_store: CacheLayer):
+        super().__init__([mem_cache, file_store, blob_store])
