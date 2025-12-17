@@ -99,3 +99,10 @@ In particular verify :
 given a list 100 generated centroids , each having a embedding_length = 512, each value is between -1 and 1
 - when adding the a new real node increasing the count of real nodes 10 to 11 to the hash ring , the number of centroids changing their serving cache < 15 (it cannot be exactly 10 because of random generation of the values). The number of centroids served by the new node should be > than number_centroids/(number_real_nodes*2)
 - when removing a real node , the number of centroids changing their serving cache < 15 (it cannot be exactly 10 because of random generation of the values)
+
+
+#prompt 12 : unit test file cache 
+
+Next to test_router.py add an new unit test class for the class FileStoreImpl,
+verify that the file store can store and retrieve a instance of the VectorSearch class
+the vectorSearch class instance for testing will have 10 vector, and the retrieved object will be tested to make sure it contains the same vectors, but also to verify will have different instance than the value provided as parameter

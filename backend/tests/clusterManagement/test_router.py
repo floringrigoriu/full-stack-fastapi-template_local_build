@@ -3,6 +3,8 @@ import random
 from app.coding_problems.ClusterManagement.router import Router, ConsistentHashRing
 from app.coding_problems.ClusterManagement.VectorSearch import InMemoryVectorSearch
 
+from .TestUtility import TestUtility
+
 
 class MockCache:
     """Mock cache for testing purposes"""
@@ -17,9 +19,8 @@ class TestRouter(unittest.TestCase):
     def setUp(self):
         # Generate 100 random centroids with embedding_length = 512
         self.num_centroids = 100
-        self.embedding_length = 512
         self.centroids = [
-            [random.uniform(-1, 1) for _ in range(self.embedding_length)]
+            TestUtility.generate_test_embedding()
             for _ in range(self.num_centroids)
         ]
         
@@ -57,7 +58,7 @@ class TestRouter(unittest.TestCase):
             centroid_hash = str(centroid)
             node = router.hash_ring.get_node(centroid_hash)
             final_mapping[i] = node
-            print(initial_mapping[i]  != final_mapping[i] ,node, initial_mapping[i] )
+            # print(initial_mapping[i]  != final_mapping[i] ,node, initial_mapping[i] )
             if initial_mapping[i]  != final_mapping[i] :  # The new node
                 new_node_count += 1
 
@@ -76,7 +77,7 @@ class TestRouter(unittest.TestCase):
         self.assertGreater(new_node_count, min_expected,
                           f"New node serves {new_node_count} centroids, expected > {min_expected}")
         
-        print(f"Add node test: {changed_count} centroids changed, {new_node_count} on new node")
+        # print(f"Add node test: {changed_count} centroids changed, {new_node_count} on new node")
 
     def test_remove_node_minimal_disruption(self):
         """Test that removing a node only remaps approximately 1/n of centroids"""

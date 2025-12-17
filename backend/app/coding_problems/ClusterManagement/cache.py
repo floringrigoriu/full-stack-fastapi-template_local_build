@@ -14,7 +14,7 @@ from typing import Any, Optional, Protocol
 import asyncio
 from collections import OrderedDict
 import os
-# import aiofiles
+import aiofiles
 import pickle
 from .lru import LRUCache
 
@@ -92,6 +92,7 @@ class FileStoreImpl(CacheLayer):
         data = pickle.dumps(value)
         async with aiofiles.open(path, "wb") as f:
             await f.write(data)
+            print(f"persistence to target {path}...")
         self.lru.set(key, value)
 
     async def delete(self, key: str) -> None:
